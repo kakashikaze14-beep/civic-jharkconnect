@@ -47,6 +47,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        gov: {
+          green: "hsl(var(--gov-green))",
+          "green-light": "hsl(var(--gov-green-light))",
+          saffron: "hsl(var(--gov-saffron))",
+          "saffron-light": "hsl(var(--gov-saffron-light))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,6 +63,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        "gradient-gov": "var(--gradient-gov)",
+        "gradient-accent": "var(--gradient-accent)",
+      },
+      boxShadow: {
+        gov: "var(--shadow-gov)",
+        card: "var(--shadow-card)",
       },
       borderRadius: {
         lg: "var(--radius)",
