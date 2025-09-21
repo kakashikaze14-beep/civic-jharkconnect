@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 const municipalities = [
@@ -27,6 +29,13 @@ const MunicipalityLogin = () => {
   const [municipality, setMunicipality] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signIn, signUp, user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/municipality/dashboard");
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,31 +52,25 @@ const MunicipalityLogin = () => {
     setLoading(true);
     
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Demo login - accept municipality@demo.com / demo123
-      if (loginEmail === "municipality@demo.com" && loginPassword === "demo123") {
-        localStorage.setItem('municipality', JSON.stringify({ 
-          email: loginEmail,
-          municipality: "Ranchi Municipal Corporation"
-        }));
+      const { error } = await signIn(loginEmail, loginPassword);
+
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
         toast({
           title: "Login Successful",
           description: "Welcome to the municipality dashboard",
         });
         navigate("/municipality/dashboard");
-      } else {
-        toast({
-          title: "Invalid Credentials",
-          description: "Please check your email and password",
-          variant: "destructive",
-        });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive",
       });
     } finally {
@@ -99,22 +102,35 @@ const MunicipalityLogin = () => {
     setLoading(true);
     
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      localStorage.setItem('municipality', JSON.stringify({ 
-        email: signupEmail,
-        municipality
-      }));
-      toast({
-        title: "Account Created",
-        description: "Welcome to the municipality dashboard",
-      });
-      navigate("/municipality/dashboard");
-    } catch (error) {
+      const { error } = await signUp(signupEmail, signupPassword);
+
+      if (error) {
+        toast({
+          title: "Signup Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        // Update profile with municipality info
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: user?.id,
+            full_name: signupEmail,
+            role: 'municipality',
+            municipality: municipality
+          });
+
+        toast({
+          title: "Account Created",
+          description: "Welcome to the municipality dashboard. Please check your email to verify your account.",
+        });
+        navigate("/municipality/dashboard");
+      }
+    } catch (error: any) {
       toast({
         title: "Signup Failed",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive",
       });
     } finally {

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 const CitizenLogin = () => {
@@ -36,13 +37,23 @@ const CitizenLogin = () => {
 
     setLoading(true);
     
-    // TODO: Replace with actual API call
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create anonymous auth session and store citizen info
+      const { data, error } = await supabase.auth.signInAnonymously();
       
-      // Store citizen info in localStorage for demo
-      localStorage.setItem('citizen', JSON.stringify({ name, phone }));
+      if (error) throw error;
+      
+      // Store citizen info in profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          full_name: name,
+          phone: phone,
+          role: 'citizen'
+        });
+
+      if (profileError) throw profileError;
       
       toast({
         title: "Login Successful",
@@ -50,10 +61,10 @@ const CitizenLogin = () => {
       });
       
       navigate("/issues");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive",
       });
     } finally {

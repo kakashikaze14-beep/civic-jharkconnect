@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { FileText, AlertCircle, Clock, CheckCircle, AlertTriangle, Users, Building } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 interface DashboardStats {
@@ -43,69 +45,50 @@ const AdminDashboard = () => {
   const [municipalityFilter, setMunicipalityFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // TODO: Replace with actual API calls
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockStats: DashboardStats = {
-          totalIssues: 248,
-          pending: 45,
-          inProgress: 89,
-          resolved: 114,
-          spamDetected: 12
-        };
+        // Fetch reports with profiles
+        const { data: reports, error } = await supabase
+          .from('reports')
+          .select(`
+            *,
+            profiles!inner(full_name, phone)
+          `)
+          .order('created_at', { ascending: false });
 
-        const mockIssues: Issue[] = [
-          {
-            id: "1",
-            citizenName: "Rajesh Kumar",
-            description: "Broken streetlight on MG Road",
-            status: "reported",
-            municipality: "Ranchi Municipal Corporation",
-            priority: "high",
-            category: "Street Lighting",
-            createdAt: "2024-01-15T10:30:00Z",
-            aiFlags: ["urgent"]
-          },
-          {
-            id: "2",
-            citizenName: "Priya Singh",
-            description: "Pothole repair needed on Main Street",
-            status: "in-progress",
-            municipality: "Dhanbad Municipal Corporation",
-            priority: "medium",
-            category: "Road Maintenance",
-            createdAt: "2024-01-14T14:20:00Z"
-          },
-          {
-            id: "3",
-            citizenName: "Amit Sharma",
-            description: "Garbage collection issue in residential area",
-            status: "resolved",
-            municipality: "Bokaro Steel City Municipal Corporation",
-            priority: "low",
-            category: "Waste Management",
-            createdAt: "2024-01-13T09:15:00Z"
-          },
-          {
-            id: "4",
-            citizenName: "Suspicious User",
-            description: "This seems like spam content...",
-            status: "reported",
-            municipality: "Ranchi Municipal Corporation",
-            priority: "low",
-            category: "Unknown",
-            createdAt: "2024-01-12T16:45:00Z",
-            aiFlags: ["spam", "fraud"]
-          }
-        ];
+        if (error) throw error;
 
-        setStats(mockStats);
-        setIssues(mockIssues);
-        setFilteredIssues(mockIssues);
+        const formattedIssues: Issue[] = reports.map(report => ({
+          id: report.id,
+          citizenName: report.profiles.full_name || 'Unknown',
+          description: report.description || '',
+          status: report.status as Issue['status'],
+          municipality: 'Unknown Municipality', // TODO: Add municipality mapping
+          priority: report.priority as Issue['priority'] || 'medium',
+          category: report.category || 'Other',
+          createdAt: report.created_at,
+          aiFlags: []
+        }));
+
+        // Calculate stats
+        const totalIssues = formattedIssues.length;
+        const pending = formattedIssues.filter(i => i.status === 'reported').length;
+        const inProgress = formattedIssues.filter(i => i.status === 'in-progress').length;
+        const resolved = formattedIssues.filter(i => i.status === 'resolved').length;
+
+        setStats({
+          totalIssues,
+          pending,
+          inProgress,
+          resolved,
+          spamDetected: 0
+        });
+
+        setIssues(formattedIssues);
+        setFilteredIssues(formattedIssues);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -113,8 +96,10 @@ const AdminDashboard = () => {
       }
     };
 
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   useEffect(() => {
     let filtered = issues;

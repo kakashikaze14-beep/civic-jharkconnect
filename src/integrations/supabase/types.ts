@@ -59,6 +59,8 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string
+          municipality: string | null
+          phone: string | null
           role: string | null
         }
         Insert: {
@@ -66,6 +68,8 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id: string
+          municipality?: string | null
+          phone?: string | null
           role?: string | null
         }
         Update: {
@@ -73,36 +77,53 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          municipality?: string | null
+          phone?: string | null
           role?: string | null
         }
         Relationships: []
       }
       reports: {
         Row: {
+          category: string | null
           created_at: string | null
           description: string | null
           id: string
+          images: string[] | null
+          latitude: number | null
           location: string | null
+          longitude: number | null
+          priority: string | null
           status: string | null
           title: string
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
+          images?: string[] | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
+          priority?: string | null
           status?: string | null
           title: string
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
+          images?: string[] | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
+          priority?: string | null
           status?: string | null
           title?: string
           updated_at?: string | null

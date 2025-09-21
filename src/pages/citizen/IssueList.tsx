@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, MapPin, Calendar, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 interface Issue {
@@ -21,47 +23,33 @@ interface Issue {
 const IssueList = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // TODO: Replace with actual API call
     const fetchIssues = async () => {
+      if (!user) return;
+      
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock data
-        const mockIssues: Issue[] = [
-          {
-            id: "1",
-            description: "Broken streetlight on MG Road causing safety issues at night",
-            status: "reported",
-            address: "MG Road, Ranchi, Jharkhand",
-            createdAt: "2024-01-15T10:30:00Z",
-            priority: "high",
-            category: "Street Lighting",
-            aiFlags: ["urgent"]
-          },
-          {
-            id: "2", 
-            description: "Pothole on Main Street needs immediate repair",
-            status: "in-progress",
-            address: "Main Street, Dhanbad, Jharkhand",
-            createdAt: "2024-01-14T14:20:00Z",
-            priority: "medium",
-            category: "Road Maintenance"
-          },
-          {
-            id: "3",
-            description: "Garbage not collected for 3 days in residential area",
-            status: "resolved",
-            address: "Sector 5, Bokaro, Jharkhand", 
-            createdAt: "2024-01-13T09:15:00Z",
-            priority: "low",
-            category: "Waste Management"
-          }
-        ];
-        
-        setIssues(mockIssues);
+        const { data, error } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const formattedIssues: Issue[] = data.map(report => ({
+          id: report.id,
+          description: report.description || '',
+          status: report.status as Issue['status'],
+          address: report.location || '',
+          createdAt: report.created_at,
+          priority: report.priority as Issue['priority'] || 'medium',
+          category: report.category || 'Other',
+          aiFlags: []
+        }));
+
+        setIssues(formattedIssues);
       } catch (error) {
         console.error("Failed to fetch issues:", error);
       } finally {
@@ -70,7 +58,7 @@ const IssueList = () => {
     };
 
     fetchIssues();
-  }, []);
+  }, [user]);
 
   const getStatusColor = (status: Issue['status']) => {
     switch (status) {

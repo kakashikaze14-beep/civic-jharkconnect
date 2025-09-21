@@ -1,8 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import jharkhandBg from "@/assets/jharkhand-gov-bg.jpg";
 
 const Header = () => {
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out",
+    });
+  };
   const location = useLocation();
   
   const isActive = (path: string) => location.pathname === path;
@@ -59,6 +70,15 @@ const Header = () => {
             >
               <Link to="/help">Help</Link>
             </Button>
+            {user && (
+              <Button 
+                variant="outline"
+                onClick={handleSignOut}
+                className="border-white/30 text-white hover:bg-white/20"
+              >
+                Logout
+              </Button>
+            )}
           </nav>
         </div>
       </div>

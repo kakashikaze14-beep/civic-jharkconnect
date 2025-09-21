@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MapPin, Phone, Calendar, Image as ImageIcon } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 interface Issue {
@@ -23,67 +25,52 @@ const MunicipalityDashboard = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [municipalityInfo, setMunicipalityInfo] = useState<{ name: string; email: string }>({ name: "", email: "" });
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Get municipality info from localStorage
-    const municipalityData = localStorage.getItem('municipality');
-    if (municipalityData) {
-      const parsed = JSON.parse(municipalityData);
-      setMunicipalityInfo({
-        name: parsed.municipality || "Ranchi Municipal Corporation",
-        email: parsed.email
-      });
-    }
-
     const fetchIssues = async () => {
+      if (!user) return;
+      
       try {
-        // TODO: Replace with actual API call filtered by municipality
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockIssues: Issue[] = [
-          {
-            id: "1",
-            citizenName: "Rajesh Kumar",
-            citizenPhone: "+91 9876543210",
-            description: "Broken streetlight on MG Road causing safety issues at night. The light has been non-functional for the past week.",
-            status: "reported",
-            address: "MG Road, Near City Mall, Ranchi, Jharkhand",
-            images: [
-              "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=200&fit=crop",
-              "https://images.unsplash.com/photo-1573152143286-0c422b4d2175?w=300&h=200&fit=crop"
-            ],
-            createdAt: "2024-01-15T10:30:00Z",
-            priority: "high",
-            category: "Street Lighting"
-          },
-          {
-            id: "2",
-            citizenName: "Priya Singh",
-            citizenPhone: "+91 9876543211",
-            description: "Large pothole on Station Road near bus stop needs immediate repair for vehicle safety.",
-            status: "in-progress",
-            address: "Station Road, Ranchi, Jharkhand",
-            images: [
-              "https://images.unsplash.com/photo-1534587329712-ba961d34c416?w=300&h=200&fit=crop"
-            ],
-            createdAt: "2024-01-14T14:20:00Z",
-            priority: "medium",
-            category: "Road Maintenance"
-          },
-          {
-            id: "3",
-            citizenName: "Amit Sharma",
-            citizenPhone: "+91 9876543212",
-            description: "Garbage not collected for 3 days in Sector 12 residential area, causing hygiene issues.",
-            status: "resolved",
-            address: "Sector 12, Ranchi, Jharkhand",
-            createdAt: "2024-01-13T09:15:00Z",
-            priority: "low",
-            category: "Waste Management"
-          }
-        ];
+        // Fetch reports with citizen profiles
+        const { data: reports, error } = await supabase
+          .from('reports')
+          .select(`
+            *,
+            profiles!inner(full_name, phone)
+          `)
+          .order('created_at', { ascending: false });
 
-        setIssues(mockIssues);
+        if (error) throw error;
+
+        const formattedIssues: Issue[] = reports.map(report => ({
+          id: report.id,
+          citizenName: report.profiles.full_name || 'Unknown',
+          citizenPhone: report.profiles.phone || 'N/A',
+          description: report.description || '',
+          status: report.status as Issue['status'],
+          address: report.location || '',
+          images: report.images || [],
+          createdAt: report.created_at,
+          priority: report.priority as Issue['priority'] || 'medium',
+          category: report.category || 'Other'
+        }));
+
+        setIssues(formattedIssues);
+
+        // Get municipality info from user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('municipality, full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setMunicipalityInfo({
+            name: profile.municipality || "Unknown Municipality",
+            email: user.email || ''
+          });
+        }
       } catch (error) {
         console.error("Failed to fetch issues:", error);
       } finally {
@@ -92,12 +79,16 @@ const MunicipalityDashboard = () => {
     };
 
     fetchIssues();
-  }, []);
+  }, [user]);
 
   const updateIssueStatus = async (issueId: string, newStatus: Issue['status']) => {
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase
+        .from('reports')
+        .update({ status: newStatus === 'reported' ? 'open' : newStatus })
+        .eq('id', issueId);
+
+      if (error) throw error;
       
       setIssues(issues.map(issue => 
         issue.id === issueId 
@@ -105,7 +96,6 @@ const MunicipalityDashboard = () => {
           : issue
       ));
 
-      // Show success message
       console.log(`Issue ${issueId} status updated to ${newStatus}`);
     } catch (error) {
       console.error("Failed to update issue status:", error);

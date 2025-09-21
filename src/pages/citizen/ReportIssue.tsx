@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { MapPin, Camera, Navigation } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 interface LocationData {
@@ -23,6 +25,7 @@ const ReportIssue = () => {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const captureLocation = async () => {
     setLoadingLocation(true);
@@ -111,6 +114,15 @@ const ReportIssue = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to report an issue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!description.trim()) {
       toast({
         title: "Missing Description",
@@ -132,44 +144,39 @@ const ReportIssue = () => {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with actual API call
-      const formData = new FormData();
-      formData.append('description', description);
-      formData.append('latitude', location.latitude.toString());
-      formData.append('longitude', location.longitude.toString());
-      formData.append('address', location.address);
-      
-      images.forEach((image, index) => {
-        formData.append(`image_${index}`, image);
-      });
+      // Upload images to an array of URLs (for now, using mock URLs)
+      const imageUrls = images.map((_, index) => `mock_image_url_${index}`);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Insert into reports table
+      const { data, error } = await supabase
+        .from('reports')
+        .insert({
+          title: description.substring(0, 100), // Use first 100 chars as title
+          description: description,
+          location: location.address,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          images: imageUrls,
+          user_id: user.id,
+          status: 'open',
+          category: 'General', // Could be determined by AI
+          priority: 'medium'
+        })
+        .select()
+        .single();
 
-      // Mock AI analysis response
-      const aiAnalysis = {
-        category: "Street Lighting",
-        priority: "high",
-        possibleDuplicate: false,
-        spamRisk: 0.1
-      };
+      if (error) throw error;
 
       toast({
         title: "Issue Reported Successfully",
-        description: `Your issue has been submitted. AI Analysis: ${aiAnalysis.category} - ${aiAnalysis.priority} priority`,
+        description: "Your issue has been submitted and assigned ID #" + data.id,
       });
 
-      // TODO: Call AI analysis endpoint
-      // await fetch('/ai/analyze', {
-      //   method: 'POST',
-      //   body: formData
-      // });
-
       navigate("/issues");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Submission Failed",
-        description: "Unable to submit your issue. Please try again.",
+        description: error.message || "Unable to submit your issue. Please try again.",
         variant: "destructive",
       });
     } finally {
