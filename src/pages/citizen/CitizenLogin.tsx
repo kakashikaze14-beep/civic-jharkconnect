@@ -38,9 +38,9 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Use phone number as unique identifier - create internal email format
-      const internalEmail = `${phone}@citizen.internal`;
-      const simplePassword = phone; // Use phone as password for simplicity
+      // Use phone number with valid email domain
+      const internalEmail = `${phone}@example.com`;
+      const simplePassword = phone;
       
       // Try to sign in first
       let { data, error } = await supabase.auth.signInWithPassword({
@@ -49,7 +49,7 @@ const CitizenLogin = () => {
       });
       
       if (error && error.message.includes('Invalid login credentials')) {
-        // Create new account without email verification
+        // Create new account
         const signUpResult = await supabase.auth.signUp({
           email: internalEmail,
           password: simplePassword,
