@@ -38,23 +38,27 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Create email from phone number for authentication
-      const email = `${phone}@citizen.gov.in`;
-      const password = `citizen_${phone}`;
+      // Use phone number as unique identifier - create internal email format
+      const internalEmail = `${phone}@citizen.internal`;
+      const simplePassword = phone; // Use phone as password for simplicity
       
-      // Try to sign in first, if fails then sign up
+      // Try to sign in first
       let { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+        email: internalEmail,
+        password: simplePassword
       });
       
       if (error && error.message.includes('Invalid login credentials')) {
-        // User doesn't exist, create new account
+        // Create new account without email verification
         const signUpResult = await supabase.auth.signUp({
-          email,
-          password,
+          email: internalEmail,
+          password: simplePassword,
           options: {
-            emailRedirectTo: `${window.location.origin}/citizen/categories`
+            emailRedirectTo: `${window.location.origin}/citizen/categories`,
+            data: {
+              full_name: name,
+              phone: phone
+            }
           }
         });
         
@@ -64,17 +68,19 @@ const CitizenLogin = () => {
         throw error;
       }
       
-      // Store citizen info in profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: data.user!.id,
-          full_name: name,
-          phone: phone,
-          role: 'citizen'
-        });
+      // Store/update citizen info in profile
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            full_name: name,
+            phone: phone,
+            role: 'citizen'
+          });
 
-      if (profileError) throw profileError;
+        if (profileError) throw profileError;
+      }
       
       toast({
         title: "Login Successful",
