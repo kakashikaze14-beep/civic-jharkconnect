@@ -60,7 +60,7 @@ const CitizenLogin = () => {
         description: `Welcome, ${name}!`,
       });
       
-      navigate("/issues");
+      navigate("/citizen/categories");
     } catch (error: any) {
       toast({
         title: "Login Failed",

@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import CitizenLogin from "./pages/citizen/CitizenLogin";
 import AdminLogin from "./pages/admin/AdminLogin";
 import MunicipalityLogin from "./pages/municipality/MunicipalityLogin";
+import IssueCategories from "./pages/citizen/IssueCategories";
 import IssueList from "./pages/citizen/IssueList";
 import ReportIssue from "./pages/citizen/ReportIssue";
 import IssueDetail from "./pages/citizen/IssueDetail";
@@ -34,6 +35,11 @@ const App = () => (
             <Route path="/login/citizen" element={<CitizenLogin />} />
             <Route path="/login/admin" element={<AdminLogin />} />
             <Route path="/login/municipality" element={<MunicipalityLogin />} />
+            <Route path="/citizen/categories" element={
+              <ProtectedRoute redirectTo="/login/citizen">
+                <IssueCategories />
+              </ProtectedRoute>
+            } />
             <Route path="/issues" element={
               <ProtectedRoute redirectTo="/login/citizen">
                 <IssueList />
