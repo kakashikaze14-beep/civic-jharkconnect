@@ -38,53 +38,50 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Convert phone to valid email format for Supabase (hidden from user)
-      const email = `phone${phone}@gmail.com`;
-      const password = `pass${phone}`;
-      
-      // Try to sign in first
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (signInError) {
-        // User doesn't exist, create new account
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password
-        });
-        
-        if (signUpError) throw signUpError;
-        
-        // Store citizen info in profile
-        if (signUpData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: signUpData.user.id,
-              full_name: name,
-              phone: phone,
-              role: 'citizen'
-            });
+      // Check if citizen already exists by phone number
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('phone', phone)
+        .eq('role', 'citizen')
+        .maybeSingle();
 
-          if (profileError) throw profileError;
-        }
+      if (checkError) throw checkError;
+
+      let userId;
+      
+      if (existingProfile) {
+        // User exists, update their name
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ full_name: name })
+          .eq('id', existingProfile.id);
+          
+        if (updateError) throw updateError;
+        userId = existingProfile.id;
       } else {
-        // Update existing profile
-        if (signInData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: signInData.user.id,
-              full_name: name,
-              phone: phone,
-              role: 'citizen'
-            });
+        // Create new citizen profile with generated UUID
+        const newUserId = crypto.randomUUID();
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: newUserId,
+            full_name: name,
+            phone: phone,
+            role: 'citizen'
+          });
 
-          if (profileError) throw profileError;
-        }
+        if (insertError) throw insertError;
+        userId = newUserId;
       }
+
+      // Store citizen session in localStorage (simple session management)
+      localStorage.setItem('citizen_session', JSON.stringify({
+        id: userId,
+        full_name: name,
+        phone: phone,
+        role: 'citizen'
+      }));
       
       toast({
         title: "Login Successful",

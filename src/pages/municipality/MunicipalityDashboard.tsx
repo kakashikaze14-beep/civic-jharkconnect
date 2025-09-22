@@ -68,7 +68,7 @@ const MunicipalityDashboard = () => {
         if (profile) {
           setMunicipalityInfo({
             name: profile.municipality || "Unknown Municipality",
-            email: user.email || ''
+            email: (user as any).email || ''
           });
         }
       } catch (error) {

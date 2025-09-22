@@ -2,8 +2,15 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface CitizenUser {
+  id: string;
+  full_name: string;
+  phone: string;
+  role: 'citizen';
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: User | CitizenUser | null;
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
@@ -14,12 +21,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | CitizenUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
+    // Check for citizen session first
+    const citizenSession = localStorage.getItem('citizen_session');
+    if (citizenSession) {
+      setUser(JSON.parse(citizenSession));
+      setLoading(false);
+      return;
+    }
+
+    // Set up Supabase auth state listener for admin/municipality
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -28,7 +43,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Check for existing session
+    // Check for existing Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -58,7 +73,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
+    // Clear citizen session
+    localStorage.removeItem('citizen_session');
+    // Sign out from Supabase
     await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
   };
 
   return (

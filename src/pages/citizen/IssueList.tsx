@@ -30,10 +30,11 @@ const IssueList = () => {
       if (!user) return;
       
       try {
+        const userId = user.id;
         const { data, error } = await supabase
           .from('reports')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
