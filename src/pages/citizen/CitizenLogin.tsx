@@ -38,16 +38,37 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Create anonymous auth session and store citizen info
-      const { data, error } = await supabase.auth.signInAnonymously();
+      // Create email from phone number for authentication
+      const email = `${phone}@citizen.gov.in`;
+      const password = `citizen_${phone}`;
       
-      if (error) throw error;
+      // Try to sign in first, if fails then sign up
+      let { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error && error.message.includes('Invalid login credentials')) {
+        // User doesn't exist, create new account
+        const signUpResult = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/citizen/categories`
+          }
+        });
+        
+        if (signUpResult.error) throw signUpResult.error;
+        data = signUpResult.data;
+      } else if (error) {
+        throw error;
+      }
       
       // Store citizen info in profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
-          id: data.user.id,
+          id: data.user!.id,
           full_name: name,
           phone: phone,
           role: 'citizen'
