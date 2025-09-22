@@ -38,48 +38,52 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Use phone number with valid email domain
-      const internalEmail = `${phone}@example.com`;
-      const simplePassword = phone;
+      // Convert phone to valid email format for Supabase (hidden from user)
+      const email = `phone${phone}@gmail.com`;
+      const password = `pass${phone}`;
       
       // Try to sign in first
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password: simplePassword
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
       
-      if (error && error.message.includes('Invalid login credentials')) {
-        // Create new account
-        const signUpResult = await supabase.auth.signUp({
-          email: internalEmail,
-          password: simplePassword,
-          options: {
-            emailRedirectTo: `${window.location.origin}/citizen/categories`,
-            data: {
-              full_name: name,
-              phone: phone
-            }
-          }
+      if (signInError) {
+        // User doesn't exist, create new account
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password
         });
         
-        if (signUpResult.error) throw signUpResult.error;
-        data = signUpResult.data;
-      } else if (error) {
-        throw error;
-      }
-      
-      // Store/update citizen info in profile
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            full_name: name,
-            phone: phone,
-            role: 'citizen'
-          });
+        if (signUpError) throw signUpError;
+        
+        // Store citizen info in profile
+        if (signUpData.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: signUpData.user.id,
+              full_name: name,
+              phone: phone,
+              role: 'citizen'
+            });
 
-        if (profileError) throw profileError;
+          if (profileError) throw profileError;
+        }
+      } else {
+        // Update existing profile
+        if (signInData.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: signInData.user.id,
+              full_name: name,
+              phone: phone,
+              role: 'citizen'
+            });
+
+          if (profileError) throw profileError;
+        }
       }
       
       toast({
