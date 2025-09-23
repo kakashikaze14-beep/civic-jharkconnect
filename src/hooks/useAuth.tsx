@@ -1,93 +1,216 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CitizenUser {
   id: string;
-  full_name: string;
+  name: string;
   phone: string;
   role: 'citizen';
 }
 
+interface AdminUser {
+  id: string;
+  user_id: string;
+  role: 'admin';
+}
+
+interface MunicipalityUser {
+  id: string;
+  user_id: string;
+  municipality: string;
+  role: 'municipality';
+}
+
+type User = CitizenUser | AdminUser | MunicipalityUser | null;
+
 interface AuthContextType {
-  user: User | CitizenUser | null;
-  session: Session | null;
+  user: User;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  loginCitizen: (name: string, phone: string) => Promise<{ success: boolean; error?: string }>;
+  loginAdmin: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signupAdmin: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginMunicipality: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signupMunicipality: (userId: string, password: string, municipality: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | CitizenUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for citizen session first
+    // Check for existing sessions
     const citizenSession = localStorage.getItem('citizen_session');
+    const adminSession = localStorage.getItem('admin_session');
+    const municipalitySession = localStorage.getItem('municipality_session');
+
     if (citizenSession) {
       setUser(JSON.parse(citizenSession));
-      setLoading(false);
-      return;
+    } else if (adminSession) {
+      setUser(JSON.parse(adminSession));
+    } else if (municipalitySession) {
+      setUser(JSON.parse(municipalitySession));
     }
 
-    // Set up Supabase auth state listener for admin/municipality
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // Check for existing Supabase session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    setLoading(false);
   }, []);
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`
+  const loginCitizen = async (name: string, phone: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('citizens')
+        .select('*')
+        .eq('name', name)
+        .eq('phone', phone)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        return { success: false, error: 'Invalid Name or Phone' };
       }
-    });
-    return { error };
+
+      const citizenUser: CitizenUser = {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        role: 'citizen'
+      };
+
+      localStorage.setItem('citizen_session', JSON.stringify(citizenUser));
+      setUser(citizenUser);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { error };
+  const loginAdmin = async (userId: string, password: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('password_hash', password)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        return { success: false, error: 'Invalid User ID or Password' };
+      }
+
+      const adminUser: AdminUser = {
+        id: data.id,
+        user_id: data.user_id,
+        role: 'admin'
+      };
+
+      localStorage.setItem('admin_session', JSON.stringify(adminUser));
+      setUser(adminUser);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   };
 
-  const signOut = async () => {
-    // Clear citizen session
+  const signupAdmin = async (userId: string, password: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('admins')
+        .insert({ user_id: userId, password_hash: password })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const adminUser: AdminUser = {
+        id: data.id,
+        user_id: data.user_id,
+        role: 'admin'
+      };
+
+      localStorage.setItem('admin_session', JSON.stringify(adminUser));
+      setUser(adminUser);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const loginMunicipality = async (userId: string, password: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('municipality_users')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('password_hash', password)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        return { success: false, error: 'Invalid User ID or Password' };
+      }
+
+      const municipalityUser: MunicipalityUser = {
+        id: data.id,
+        user_id: data.user_id,
+        municipality: data.municipality,
+        role: 'municipality'
+      };
+
+      localStorage.setItem('municipality_session', JSON.stringify(municipalityUser));
+      setUser(municipalityUser);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signupMunicipality = async (userId: string, password: string, municipality: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('municipality_users')
+        .insert({ user_id: userId, password_hash: password, municipality })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const municipalityUser: MunicipalityUser = {
+        id: data.id,
+        user_id: data.user_id,
+        municipality: data.municipality,
+        role: 'municipality'
+      };
+
+      localStorage.setItem('municipality_session', JSON.stringify(municipalityUser));
+      setUser(municipalityUser);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signOut = () => {
     localStorage.removeItem('citizen_session');
-    // Sign out from Supabase
-    await supabase.auth.signOut();
+    localStorage.removeItem('admin_session');
+    localStorage.removeItem('municipality_session');
     setUser(null);
-    setSession(null);
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      session,
       loading,
-      signUp,
-      signIn,
+      loginCitizen,
+      loginAdmin,
+      signupAdmin,
+      loginMunicipality,
+      signupMunicipality,
       signOut
     }}>
       {children}

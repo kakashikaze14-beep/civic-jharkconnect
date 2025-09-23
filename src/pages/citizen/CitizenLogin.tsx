@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 
 const CitizenLogin = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const { loginCitizen } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,57 +39,21 @@ const CitizenLogin = () => {
     setLoading(true);
     
     try {
-      // Check if citizen already exists by phone number
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('phone', phone)
-        .eq('role', 'citizen')
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      let userId;
+      const result = await loginCitizen(name, phone);
       
-      if (existingProfile) {
-        // User exists, update their name
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ full_name: name })
-          .eq('id', existingProfile.id);
-          
-        if (updateError) throw updateError;
-        userId = existingProfile.id;
+      if (result.success) {
+        toast({
+          title: "Login Successful",
+          description: `Welcome, ${name}!`,
+        });
+        navigate("/issues");
       } else {
-        // Create new citizen profile with generated UUID
-        const newUserId = crypto.randomUUID();
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: newUserId,
-            full_name: name,
-            phone: phone,
-            role: 'citizen'
-          });
-
-        if (insertError) throw insertError;
-        userId = newUserId;
+        toast({
+          title: "Login Failed",
+          description: result.error || "Please check your credentials",
+          variant: "destructive",
+        });
       }
-
-      // Store citizen session in localStorage (simple session management)
-      localStorage.setItem('citizen_session', JSON.stringify({
-        id: userId,
-        full_name: name,
-        phone: phone,
-        role: 'citizen'
-      }));
-      
-      toast({
-        title: "Login Successful",
-        description: `Welcome, ${name}!`,
-      });
-      
-      navigate("/citizen/categories");
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -101,14 +66,19 @@ const CitizenLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('/src/assets/jharkhand-gov-bg.jpg')`
+      }}
+    >
       <Header />
       
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-md mx-auto">
           <Card className="shadow-card">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Citizen Login</CardTitle>
+              <CardTitle className="text-2xl text-gov-green">Citizen Login</CardTitle>
               <CardDescription>
                 Enter your details to access the issue reporting system
               </CardDescription>
@@ -149,8 +119,7 @@ const CitizenLogin = () => {
               </form>
               
               <div className="mt-6 text-center text-sm text-muted-foreground">
-                <p>New to the system? No signup required!</p>
-                <p>Just enter your details to get started.</p>
+                <p>New to the system? Contact your local authority to get registered.</p>
               </div>
             </CardContent>
           </Card>

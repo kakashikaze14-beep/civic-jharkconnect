@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      admins: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      citizens: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           author: string | null
@@ -52,6 +94,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      issues: {
+        Row: {
+          address: string | null
+          ai_flags: Json | null
+          category: string
+          citizen_name: string
+          citizen_phone: string
+          created_at: string
+          description: string | null
+          id: string
+          images: string[] | null
+          municipality: string | null
+          priority: string | null
+          status: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          ai_flags?: Json | null
+          category: string
+          citizen_name: string
+          citizen_phone: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          municipality?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          ai_flags?: Json | null
+          category?: string
+          citizen_name?: string
+          citizen_phone?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          municipality?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      municipality_users: {
+        Row: {
+          created_at: string
+          id: string
+          municipality: string
+          password_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          municipality: string
+          password_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          municipality?: string
+          password_hash?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
